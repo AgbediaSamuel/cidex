@@ -1,0 +1,18 @@
+# Rust build artifacts
+/target
+
+# cidex's own indexes (when running cidex on its own repo for dogfooding)
+.cidex/
+
+# Tool-specific ignore (don't ship one — let users add their own)
+.cidexignore
+
+# OS / editor junk
+.DS_Store
+*.swp
+*.swo
+.idea/
+.vscode/
+
+# Local benchmark scratch
+/tmp-bench/
