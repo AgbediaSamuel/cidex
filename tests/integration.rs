@@ -60,8 +60,7 @@ fn ensure_fixtures_indexed() {
         let fixtures = fixtures_dir();
         // Always rebuild — fingerprint check makes this cheap if it's already current,
         // and starting from a known-good state avoids "stale partial index" surprises.
-        let (_, stderr, code) =
-            run_cidex(&["index", fixtures.to_str().unwrap(), "--force"]);
+        let (_, stderr, code) = run_cidex(&["index", fixtures.to_str().unwrap(), "--force"]);
         assert_eq!(code, 0, "indexing fixtures failed: {}", stderr);
     });
 }
