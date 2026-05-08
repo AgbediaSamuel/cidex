@@ -1,0 +1,253 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # for GitHub Releases
+  id-token: write   # for npm provenance (cryptographic attestation of publish source)
+
+jobs:
+  # 1) Build binaries for all five target platforms.
+  build:
+    name: build (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            npm_pkg: cidex-linux-x64
+            npm_os: linux
+            npm_cpu: x64
+            ext: ""
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            npm_pkg: cidex-linux-arm64
+            npm_os: linux
+            npm_cpu: arm64
+            ext: ""
+            linker: aarch64-linux-gnu-gcc
+            apt_packages: gcc-aarch64-linux-gnu
+          - os: macos-13
+            target: x86_64-apple-darwin
+            npm_pkg: cidex-darwin-x64
+            npm_os: darwin
+            npm_cpu: x64
+            ext: ""
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            npm_pkg: cidex-darwin-arm64
+            npm_os: darwin
+            npm_cpu: arm64
+            ext: ""
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            npm_pkg: cidex-win32-x64
+            npm_os: win32
+            npm_cpu: x64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross-compilation linker (linux-arm64)
+        if: matrix.apt_packages
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.apt_packages }}
+
+      - name: Configure linker for cross compile
+        if: matrix.linker
+        run: |
+          mkdir -p .cargo
+          echo "[target.${{ matrix.target }}]" >> .cargo/config.toml
+          echo "linker = \"${{ matrix.linker }}\"" >> .cargo/config.toml
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build release binary
+        env:
+          # Strip + opt for binary size; LTO + codegen-units=1 already in Cargo.toml.
+          CARGO_PROFILE_RELEASE_STRIP: "true"
+        run: cargo build --release --bin cidex --target ${{ matrix.target }}
+
+      - name: Stage binary
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/cidex${{ matrix.ext }}" "dist/cidex${{ matrix.ext }}"
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bin-${{ matrix.target }}
+          path: dist/cidex${{ matrix.ext }}
+          if-no-files-found: error
+
+  # 2) Build npm platform packages — one per target, each containing just
+  #    the binary + a tiny package.json with os/cpu constraints.
+  npm-platform-packages:
+    name: npm platform pkg (${{ matrix.target }})
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            npm_pkg: cidex-linux-x64
+            npm_os: linux
+            npm_cpu: x64
+            ext: ""
+          - target: aarch64-unknown-linux-gnu
+            npm_pkg: cidex-linux-arm64
+            npm_os: linux
+            npm_cpu: arm64
+            ext: ""
+          - target: x86_64-apple-darwin
+            npm_pkg: cidex-darwin-x64
+            npm_os: darwin
+            npm_cpu: x64
+            ext: ""
+          - target: aarch64-apple-darwin
+            npm_pkg: cidex-darwin-arm64
+            npm_os: darwin
+            npm_cpu: arm64
+            ext: ""
+          - target: x86_64-pc-windows-msvc
+            npm_pkg: cidex-win32-x64
+            npm_os: win32
+            npm_cpu: x64
+            ext: ".exe"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read tag version
+        id: version
+        run: echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: bin-${{ matrix.target }}
+          path: bin-staging
+
+      - name: Assemble package
+        run: |
+          PKG_DIR="pkg/${{ matrix.npm_pkg }}"
+          mkdir -p "${PKG_DIR}/bin"
+          cp "bin-staging/cidex${{ matrix.ext }}" "${PKG_DIR}/bin/cidex${{ matrix.ext }}"
+          chmod +x "${PKG_DIR}/bin/cidex${{ matrix.ext }}"
+
+          cat > "${PKG_DIR}/package.json" <<JSON
+          {
+            "name": "${{ matrix.npm_pkg }}",
+            "version": "${{ steps.version.outputs.version }}",
+            "description": "${{ matrix.npm_os }}-${{ matrix.npm_cpu }} prebuilt binary for cidex",
+            "license": "MIT",
+            "homepage": "https://github.com/AgbediaSamuel/cidex",
+            "repository": {
+              "type": "git",
+              "url": "git+https://github.com/AgbediaSamuel/cidex.git"
+            },
+            "os": ["${{ matrix.npm_os }}"],
+            "cpu": ["${{ matrix.npm_cpu }}"],
+            "files": ["bin/"]
+          }
+          JSON
+
+          cat > "${PKG_DIR}/README.md" <<MD
+          # ${{ matrix.npm_pkg }}
+
+          Prebuilt cidex binary for \`${{ matrix.npm_os }}-${{ matrix.npm_cpu }}\`.
+
+          You shouldn't depend on this directly — install [\`cidex\`](https://www.npmjs.com/package/cidex)
+          and npm will pull this in automatically as an optional dependency for your platform.
+
+          See the [main repo](https://github.com/AgbediaSamuel/cidex) for documentation.
+          MD
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        working-directory: pkg/${{ matrix.npm_pkg }}
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # 3) Publish the main cidex wrapper. Runs after platform packages so
+  #    they're resolvable by users at install time.
+  npm-main-package:
+    name: npm main pkg
+    needs: npm-platform-packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Publish to npm
+        working-directory: npm/cidex
+        run: npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # 4) Stage platform binaries as a zipped/tarred archive on the GitHub
+  #    Release. People who don't want npm can grab a tarball directly.
+  github-release:
+    name: GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create release archives
+        run: |
+          mkdir -p release
+          for dir in artifacts/bin-*; do
+            target="${dir#artifacts/bin-}"
+            cp -r "$dir" "release/cidex-${target}"
+            if [[ "$target" == *windows* ]]; then
+              (cd release && zip -r "cidex-${target}.zip" "cidex-${target}")
+            else
+              chmod +x "release/cidex-${target}/cidex" || true
+              (cd release && tar -czf "cidex-${target}.tar.gz" "cidex-${target}")
+            fi
+          done
+          ls -la release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            release/*.tar.gz
+            release/*.zip

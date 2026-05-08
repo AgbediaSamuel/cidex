@@ -98,12 +98,7 @@ fn invalid_pattern_exit_code_2() {
 fn fixed_strings_treats_dot_literally() {
     ensure_fixtures_indexed();
     // Without -F, "1024." would be a regex. With -F, it's a literal.
-    let (stdout, _, code) = run_cidex(&[
-        "search",
-        "1024;",
-        fixtures_dir().to_str().unwrap(),
-        "-F",
-    ]);
+    let (stdout, _, code) = run_cidex(&["search", "1024;", fixtures_dir().to_str().unwrap(), "-F"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("1024;"));
 }
@@ -111,12 +106,7 @@ fn fixed_strings_treats_dot_literally() {
 #[test]
 fn case_insensitive_matches_uppercase() {
     ensure_fixtures_indexed();
-    let (stdout, _, code) = run_cidex(&[
-        "search",
-        "todo",
-        fixtures_dir().to_str().unwrap(),
-        "-i",
-    ]);
+    let (stdout, _, code) = run_cidex(&["search", "todo", fixtures_dir().to_str().unwrap(), "-i"]);
     assert_eq!(code, 0);
     assert!(stdout.contains("TODO"));
 }
@@ -124,24 +114,17 @@ fn case_insensitive_matches_uppercase() {
 #[test]
 fn smart_case_lowercase_pattern_is_insensitive() {
     ensure_fixtures_indexed();
-    let (stdout, _, _) = run_cidex(&[
-        "search",
-        "todo",
-        fixtures_dir().to_str().unwrap(),
-        "-S",
-    ]);
-    assert!(stdout.contains("TODO"), "smart case should match uppercase TODO");
+    let (stdout, _, _) = run_cidex(&["search", "todo", fixtures_dir().to_str().unwrap(), "-S"]);
+    assert!(
+        stdout.contains("TODO"),
+        "smart case should match uppercase TODO"
+    );
 }
 
 #[test]
 fn smart_case_mixed_case_pattern_is_sensitive() {
     ensure_fixtures_indexed();
-    let (stdout, _, code) = run_cidex(&[
-        "search",
-        "Todo",
-        fixtures_dir().to_str().unwrap(),
-        "-S",
-    ]);
+    let (stdout, _, code) = run_cidex(&["search", "Todo", fixtures_dir().to_str().unwrap(), "-S"]);
     // No "Todo" anywhere in fixtures, only "TODO" — so this should not match.
     assert_eq!(code, 1, "smart case with capital should be case-sensitive");
     assert!(!stdout.contains("TODO"));
@@ -151,12 +134,7 @@ fn smart_case_mixed_case_pattern_is_sensitive() {
 fn word_boundary_excludes_substring_match() {
     ensure_fixtures_indexed();
     // "fact" is a substring of "factorial". With -w, "fact" alone shouldn't match.
-    let (_, _, code) = run_cidex(&[
-        "search",
-        "fact",
-        fixtures_dir().to_str().unwrap(),
-        "-w",
-    ]);
+    let (_, _, code) = run_cidex(&["search", "fact", fixtures_dir().to_str().unwrap(), "-w"]);
     assert_eq!(code, 1, "-w should exclude substring matches");
 }
 
@@ -173,7 +151,11 @@ fn invert_match_returns_non_matching_lines() {
     // Every line in math.py that doesn't contain "return".
     for line in stdout.lines() {
         // -v output is just the line content for single-file search
-        assert!(!line.contains("return"), "found 'return' in inverted output: {}", line);
+        assert!(
+            !line.contains("return"),
+            "found 'return' in inverted output: {}",
+            line
+        );
     }
 }
 
@@ -241,9 +223,22 @@ fn vimgrep_format_is_path_line_col_text() {
         }
         // path:line:col:text — first three colons separate the fields.
         let parts: Vec<&str> = line.splitn(4, ':').collect();
-        assert_eq!(parts.len(), 4, "vimgrep line should have 4 colon-separated parts: {}", line);
-        assert!(parts[1].parse::<usize>().is_ok(), "line number not numeric: {}", parts[1]);
-        assert!(parts[2].parse::<usize>().is_ok(), "column not numeric: {}", parts[2]);
+        assert_eq!(
+            parts.len(),
+            4,
+            "vimgrep line should have 4 colon-separated parts: {}",
+            line
+        );
+        assert!(
+            parts[1].parse::<usize>().is_ok(),
+            "line number not numeric: {}",
+            parts[1]
+        );
+        assert!(
+            parts[2].parse::<usize>().is_ok(),
+            "column not numeric: {}",
+            parts[2]
+        );
     }
 }
 
@@ -259,7 +254,11 @@ fn type_filter_excludes_other_extensions() {
     ]);
     // factorial appears in math.py, that's it.
     for line in stdout.lines() {
-        assert!(line.contains(".py"), "non-py file in -t py output: {}", line);
+        assert!(
+            line.contains(".py"),
+            "non-py file in -t py output: {}",
+            line
+        );
     }
 }
 
@@ -267,12 +266,11 @@ fn type_filter_excludes_other_extensions() {
 fn binary_files_are_skipped() {
     ensure_fixtures_indexed();
     // binary.dat contains the word "binary" but has null bytes — should be skipped.
-    let (stdout, _, _) = run_cidex(&[
-        "search",
-        "binary",
-        fixtures_dir().to_str().unwrap(),
-    ]);
-    assert!(!stdout.contains("binary.dat"), "binary file leaked into results");
+    let (stdout, _, _) = run_cidex(&["search", "binary", fixtures_dir().to_str().unwrap()]);
+    assert!(
+        !stdout.contains("binary.dat"),
+        "binary file leaked into results"
+    );
 }
 
 #[test]
@@ -294,21 +292,27 @@ fn auto_index_builds_on_first_search() {
 
     // Set up a temporary repo with no .cidex/.
     let tmp = tempfile::tempdir().unwrap();
-    fs::write(tmp.path().join("a.rs"), "fn main() { let unique_marker = 1; }").unwrap();
+    fs::write(
+        tmp.path().join("a.rs"),
+        "fn main() { let unique_marker = 1; }",
+    )
+    .unwrap();
 
     // Search without manually indexing first.
     let (stdout, _, code) = run_cidex(&["search", "unique_marker", tmp.path().to_str().unwrap()]);
     assert_eq!(code, 0);
     assert!(stdout.contains("unique_marker"));
-    assert!(tmp.path().join(".cidex").exists(), "index should have been auto-built");
+    assert!(
+        tmp.path().join(".cidex").exists(),
+        "index should have been auto-built"
+    );
 }
 
 #[test]
 fn incremental_skips_unchanged() {
     // Two consecutive index runs on the same fixtures should be a no-op the second time.
     ensure_fixtures_indexed();
-    let (_, stderr, code) =
-        run_cidex(&["index", fixtures_dir().to_str().unwrap()]);
+    let (_, stderr, code) = run_cidex(&["index", fixtures_dir().to_str().unwrap()]);
     assert_eq!(code, 0);
     assert!(
         stderr.contains("up to date"),
@@ -393,12 +397,8 @@ fn diff_count() {
     ensure_fixtures_indexed();
 
     // -c output is path-prefixed differently between tools, so just compare totals.
-    let (cidex_out, _, _) = run_cidex(&[
-        "search",
-        "return",
-        fixtures_dir().to_str().unwrap(),
-        "-c",
-    ]);
+    let (cidex_out, _, _) =
+        run_cidex(&["search", "return", fixtures_dir().to_str().unwrap(), "-c"]);
     let (rg_out, _, _) = run_rg(&["-c", "return", fixtures_dir().to_str().unwrap()]).unwrap();
 
     let total = |s: &str| -> usize {
@@ -562,7 +562,11 @@ fn mcp_search_with_context_lines() {
     let resp = mcp_call(&call);
     let text = resp["result"]["content"][0]["text"].as_str().expect("text");
     // Match line uses ":" separator; context lines use "-".
-    assert!(text.contains(":3:def factorial"), "missing match line: {}", text);
+    assert!(
+        text.contains(":3:def factorial"),
+        "missing match line: {}",
+        text
+    );
     assert!(text.contains("-1-"), "missing context line: {}", text);
     assert!(text.contains("-2-"), "missing context line: {}", text);
 }
@@ -604,11 +608,14 @@ fn cidexignore_excludes_directory() {
     fs::create_dir_all(tmp.path().join("junk")).unwrap();
     fs::create_dir_all(tmp.path().join("src")).unwrap();
     fs::write(tmp.path().join("src/main.rs"), "fn unique_marker() {}").unwrap();
-    fs::write(tmp.path().join("junk/dump.txt"), "should not match unique_marker").unwrap();
+    fs::write(
+        tmp.path().join("junk/dump.txt"),
+        "should not match unique_marker",
+    )
+    .unwrap();
     fs::write(tmp.path().join(".cidexignore"), "junk/\n").unwrap();
 
-    let (stdout, _, _) =
-        run_cidex(&["search", "unique_marker", tmp.path().to_str().unwrap()]);
+    let (stdout, _, _) = run_cidex(&["search", "unique_marker", tmp.path().to_str().unwrap()]);
     assert!(stdout.contains("main.rs"));
     assert!(!stdout.contains("dump.txt"), ".cidexignore wasn't applied");
 }
@@ -629,8 +636,7 @@ fn gitignore_applied_without_git_dir() {
     .unwrap();
     fs::write(tmp.path().join(".gitignore"), "target/\n").unwrap();
 
-    let (stdout, _, _) =
-        run_cidex(&["search", "unique_marker", tmp.path().to_str().unwrap()]);
+    let (stdout, _, _) = run_cidex(&["search", "unique_marker", tmp.path().to_str().unwrap()]);
     assert!(stdout.contains("lib.rs"));
     assert!(
         !stdout.contains("target/"),

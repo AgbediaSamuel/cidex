@@ -1,6 +1,6 @@
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -27,23 +27,27 @@ pub fn watch(root: &Path) -> Result<()> {
     let dirty_clone = dirty.clone();
     let cidex_str = cidex_dir.to_string_lossy().to_string();
 
-    let mut watcher = notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
-        if let Ok(event) = res {
-            let in_cidex = event.paths.iter().all(|p| {
-                p.to_string_lossy().contains(&cidex_str)
-            });
-            if in_cidex { return; }
-
-            match event.kind {
-                notify::EventKind::Create(_)
-                | notify::EventKind::Modify(_)
-                | notify::EventKind::Remove(_) => {
-                    dirty_clone.store(true, Ordering::Relaxed);
+    let mut watcher =
+        notify::recommended_watcher(move |res: Result<notify::Event, notify::Error>| {
+            if let Ok(event) = res {
+                let in_cidex = event
+                    .paths
+                    .iter()
+                    .all(|p| p.to_string_lossy().contains(&cidex_str));
+                if in_cidex {
+                    return;
                 }
-                _ => {}
+
+                match event.kind {
+                    notify::EventKind::Create(_)
+                    | notify::EventKind::Modify(_)
+                    | notify::EventKind::Remove(_) => {
+                        dirty_clone.store(true, Ordering::Relaxed);
+                    }
+                    _ => {}
+                }
             }
-        }
-    })?;
+        })?;
 
     watcher.watch(&root, RecursiveMode::Recursive)?;
 

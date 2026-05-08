@@ -139,7 +139,9 @@ pub fn search_to<W: Write + Send>(
 
     if let Some(max_size) = opts.max_filesize {
         candidates.retain(|p| {
-            std::fs::metadata(p).map(|m| m.len() <= max_size).unwrap_or(true)
+            std::fs::metadata(p)
+                .map(|m| m.len() <= max_size)
+                .unwrap_or(true)
         });
     }
 
@@ -214,11 +216,9 @@ pub fn search_to<W: Write + Send>(
             };
 
             if opts.files_without_match {
-                if !has_match {
-                    if !opts.quiet {
-                        let sep = if opts.null_separator { "\0" } else { "\n" };
-                        return Some((rel_str.clone(), format!("{}{}", rel_str, sep).into_bytes()));
-                    }
+                if !has_match && !opts.quiet {
+                    let sep = if opts.null_separator { "\0" } else { "\n" };
+                    return Some((rel_str.clone(), format!("{}{}", rel_str, sep).into_bytes()));
                 }
                 return None;
             }
@@ -241,7 +241,11 @@ pub fn search_to<W: Write + Send>(
 
         let file_match_count = if opts.quiet {
             if opts.invert {
-                if has_non_matching_line(&content, &re) { 1 } else { 0 }
+                if has_non_matching_line(&content, &re) {
+                    1
+                } else {
+                    0
+                }
             } else if re.is_match(&content) {
                 1
             } else {
@@ -268,9 +272,13 @@ pub fn search_to<W: Write + Send>(
 
             if opts.heading && !buf.is_empty() && !opts.json {
                 let mut headed = Vec::with_capacity(rel_bytes.len() + 20 + buf.len());
-                if opts.color { headed.extend_from_slice(C_PATH); }
+                if opts.color {
+                    headed.extend_from_slice(C_PATH);
+                }
                 headed.extend_from_slice(rel_bytes);
-                if opts.color { headed.extend_from_slice(C_RESET); }
+                if opts.color {
+                    headed.extend_from_slice(C_RESET);
+                }
                 headed.push(b'\n');
                 headed.extend_from_slice(&buf);
                 headed.push(b'\n');
@@ -286,10 +294,8 @@ pub fn search_to<W: Write + Send>(
     };
 
     if opts.sort {
-        let mut results: Vec<(String, Vec<u8>)> = candidates
-            .par_iter()
-            .filter_map(process_file)
-            .collect();
+        let mut results: Vec<(String, Vec<u8>)> =
+            candidates.par_iter().filter_map(process_file).collect();
         results.sort_by(|a, b| a.0.cmp(&b.0));
         let mut w = out_mtx.lock().expect("output mutex poisoned");
         for (_, buf) in results {
@@ -306,8 +312,14 @@ pub fn search_to<W: Write + Send>(
 
     if opts.show_stats {
         let elapsed = start.elapsed();
-        eprintln!("\n{} files searched", stat_files_searched.load(Ordering::Relaxed));
-        eprintln!("{} files matched", stat_files_matched.load(Ordering::Relaxed));
+        eprintln!(
+            "\n{} files searched",
+            stat_files_searched.load(Ordering::Relaxed)
+        );
+        eprintln!(
+            "{} files matched",
+            stat_files_matched.load(Ordering::Relaxed)
+        );
         eprintln!("{} matches", stat_matches.load(Ordering::Relaxed));
         eprintln!(
             "{:.1} MB searched in {:.3}s",
@@ -351,7 +363,9 @@ fn search_no_context(
             .unwrap_or(content.len());
 
         for &b in &content[counted_up_to..line_start] {
-            if b == b'\n' { current_line += 1; }
+            if b == b'\n' {
+                current_line += 1;
+            }
         }
         counted_up_to = line_start;
 
@@ -359,16 +373,36 @@ fn search_no_context(
         let line_bytes = &content[line_start..line_end];
         if let Some(ref repl) = opts.replace {
             let replaced = re.replace_all(line_bytes, repl.as_bytes());
-            format_line(buf, rel_bytes, &num_buf.format(current_line), Some(col), &replaced, line_start, re, opts);
+            format_line(
+                buf,
+                rel_bytes,
+                num_buf.format(current_line),
+                Some(col),
+                &replaced,
+                line_start,
+                re,
+                opts,
+            );
         } else {
-            format_line(buf, rel_bytes, &num_buf.format(current_line), Some(col), line_bytes, line_start, re, opts);
+            format_line(
+                buf,
+                rel_bytes,
+                num_buf.format(current_line),
+                Some(col),
+                line_bytes,
+                line_start,
+                re,
+                opts,
+            );
         }
 
         prev_line_end = line_end + 1;
         match_count += 1;
 
-        if let Some(max) = opts.max_count {
-            if match_count >= max { break; }
+        if let Some(max) = opts.max_count
+            && match_count >= max
+        {
+            break;
         }
     }
 
@@ -397,21 +431,43 @@ fn search_only_matching(
             .unwrap_or(0);
 
         for &b in &content[counted_up_to..line_start] {
-            if b == b'\n' { current_line += 1; }
+            if b == b'\n' {
+                current_line += 1;
+            }
         }
         counted_up_to = line_start;
 
         let matched = &content[m.start()..m.end()];
         if let Some(ref repl) = opts.replace {
             let replaced = re.replace(matched, repl.as_bytes());
-            format_line(buf, rel_bytes, &num_buf.format(current_line), None, &replaced, m.start(), re, opts);
+            format_line(
+                buf,
+                rel_bytes,
+                num_buf.format(current_line),
+                None,
+                &replaced,
+                m.start(),
+                re,
+                opts,
+            );
         } else {
-            format_line(buf, rel_bytes, &num_buf.format(current_line), None, matched, m.start(), re, opts);
+            format_line(
+                buf,
+                rel_bytes,
+                num_buf.format(current_line),
+                None,
+                matched,
+                m.start(),
+                re,
+                opts,
+            );
         }
 
         match_count += 1;
-        if let Some(max) = opts.max_count {
-            if match_count >= max { break; }
+        if let Some(max) = opts.max_count
+            && match_count >= max
+        {
+            break;
         }
     }
 
@@ -437,10 +493,21 @@ fn search_invert(
 
         let line = &content[pos..line_end];
         if !re.is_match(line) {
-            format_line(buf, rel_bytes, &num_buf.format(line_num), None, line, pos, re, opts);
+            format_line(
+                buf,
+                rel_bytes,
+                num_buf.format(line_num),
+                None,
+                line,
+                pos,
+                re,
+                opts,
+            );
             match_count += 1;
-            if let Some(max) = opts.max_count {
-                if match_count >= max { break; }
+            if let Some(max) = opts.max_count
+                && match_count >= max
+            {
+                break;
             }
         }
 
@@ -471,25 +538,35 @@ fn search_with_context(
         if !match_line_set[line] {
             match_line_set[line] = true;
             match_count += 1;
-            if let Some(max) = opts.max_count {
-                if match_count >= max { break; }
+            if let Some(max) = opts.max_count
+                && match_count >= max
+            {
+                break;
             }
         }
     }
 
-    if match_count == 0 { return 0; }
+    if match_count == 0 {
+        return 0;
+    }
 
-    let ctx_before = if opts.passthru { usize::MAX / 2 } else { opts.context_before };
-    let ctx_after = if opts.passthru { usize::MAX / 2 } else { opts.context_after };
+    let ctx_before = if opts.passthru {
+        usize::MAX / 2
+    } else {
+        opts.context_before
+    };
+    let ctx_after = if opts.passthru {
+        usize::MAX / 2
+    } else {
+        opts.context_after
+    };
 
     let mut include_set = vec![false; total_lines];
-    for line in 0..total_lines {
-        if match_line_set[line] {
+    for (line, &is_match) in match_line_set.iter().enumerate() {
+        if is_match {
             let start = line.saturating_sub(ctx_before);
             let end = (line + ctx_after + 1).min(total_lines);
-            for ctx in start..end {
-                include_set[ctx] = true;
-            }
+            include_set[start..end].fill(true);
         }
     }
 
@@ -515,19 +592,35 @@ fn search_with_context(
         let c = opts.color;
 
         if opts.show_filename && !opts.heading {
-            if c { buf.extend_from_slice(C_PATH); }
+            if c {
+                buf.extend_from_slice(C_PATH);
+            }
             buf.extend_from_slice(rel_bytes);
-            if c { buf.extend_from_slice(C_RESET); }
+            if c {
+                buf.extend_from_slice(C_RESET);
+            }
         }
-        if c { buf.extend_from_slice(C_SEP); }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
         buf.push(sep);
-        if c { buf.extend_from_slice(C_RESET); }
-        if c { buf.extend_from_slice(C_NUM); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_NUM);
+        }
         buf.extend_from_slice(num_buf.format(line + 1).as_bytes());
-        if c { buf.extend_from_slice(C_RESET); }
-        if c { buf.extend_from_slice(C_SEP); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
         buf.push(sep);
-        if c { buf.extend_from_slice(C_RESET); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
 
         let line_bytes = &content[start..end];
         if is_match {
@@ -577,7 +670,9 @@ fn search_json(
             .unwrap_or(content.len());
 
         for &b in &content[counted_up_to..line_start] {
-            if b == b'\n' { current_line += 1; }
+            if b == b'\n' {
+                current_line += 1;
+            }
         }
         counted_up_to = line_start;
 
@@ -603,8 +698,10 @@ fn search_json(
         prev_line_end = line_end + 1;
         match_count += 1;
 
-        if let Some(max) = opts.max_count {
-            if match_count >= max { break; }
+        if let Some(max) = opts.max_count
+            && match_count >= max
+        {
+            break;
         }
     }
 
@@ -617,6 +714,7 @@ const C_MATCH: &[u8] = b"\x1b[1;31m";
 const C_RESET: &[u8] = b"\x1b[0m";
 const C_SEP: &[u8] = b"\x1b[36m";
 
+#[allow(clippy::too_many_arguments)]
 fn format_line(
     buf: &mut Vec<u8>,
     rel_bytes: &[u8],
@@ -628,61 +726,97 @@ fn format_line(
     opts: &SearchOpts,
 ) {
     // --max-columns: skip lines that are too long
-    if let Some(max) = opts.max_columns {
-        if max > 0 && line.len() > max {
-            if opts.show_filename && !opts.heading {
-                buf.extend_from_slice(rel_bytes);
-                buf.push(b':');
-            }
-            if opts.show_line_numbers {
-                buf.extend_from_slice(line_num.as_bytes());
-                buf.push(b':');
-            }
-            buf.extend_from_slice(b"[Omitted long line]\n");
-            return;
+    if let Some(max) = opts.max_columns
+        && max > 0
+        && line.len() > max
+    {
+        if opts.show_filename && !opts.heading {
+            buf.extend_from_slice(rel_bytes);
+            buf.push(b':');
         }
+        if opts.show_line_numbers {
+            buf.extend_from_slice(line_num.as_bytes());
+            buf.push(b':');
+        }
+        buf.extend_from_slice(b"[Omitted long line]\n");
+        return;
     }
 
     let c = opts.color;
     if opts.show_filename && !opts.heading {
-        if c { buf.extend_from_slice(C_PATH); }
+        if c {
+            buf.extend_from_slice(C_PATH);
+        }
         buf.extend_from_slice(rel_bytes);
-        if c { buf.extend_from_slice(C_RESET); }
-        if c { buf.extend_from_slice(C_SEP); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
         buf.push(b':');
-        if c { buf.extend_from_slice(C_RESET); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
     }
     if opts.show_line_numbers {
-        if c { buf.extend_from_slice(C_NUM); }
+        if c {
+            buf.extend_from_slice(C_NUM);
+        }
         buf.extend_from_slice(line_num.as_bytes());
-        if c { buf.extend_from_slice(C_RESET); }
-        if c { buf.extend_from_slice(C_SEP); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
         buf.push(b':');
-        if c { buf.extend_from_slice(C_RESET); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
     }
-    if let Some(col_val) = col {
-        if opts.show_column {
-            if c { buf.extend_from_slice(C_NUM); }
-            let mut nb = itoa::Buffer::new();
-            buf.extend_from_slice(nb.format(col_val).as_bytes());
-            if c { buf.extend_from_slice(C_RESET); }
-            if c { buf.extend_from_slice(C_SEP); }
-            buf.push(b':');
-            if c { buf.extend_from_slice(C_RESET); }
+    if let Some(col_val) = col
+        && opts.show_column
+    {
+        if c {
+            buf.extend_from_slice(C_NUM);
+        }
+        let mut nb = itoa::Buffer::new();
+        buf.extend_from_slice(nb.format(col_val).as_bytes());
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
+        buf.push(b':');
+        if c {
+            buf.extend_from_slice(C_RESET);
         }
     }
     if opts.byte_offset {
-        if c { buf.extend_from_slice(C_NUM); }
+        if c {
+            buf.extend_from_slice(C_NUM);
+        }
         let mut nb = itoa::Buffer::new();
         buf.extend_from_slice(nb.format(byte_off).as_bytes());
-        if c { buf.extend_from_slice(C_RESET); }
-        if c { buf.extend_from_slice(C_SEP); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
+        if c {
+            buf.extend_from_slice(C_SEP);
+        }
         buf.push(b':');
-        if c { buf.extend_from_slice(C_RESET); }
+        if c {
+            buf.extend_from_slice(C_RESET);
+        }
     }
 
     let output_line = if opts.trim {
-        let trimmed = line.iter().position(|&b| b != b' ' && b != b'\t').unwrap_or(0);
+        let trimmed = line
+            .iter()
+            .position(|&b| b != b' ' && b != b'\t')
+            .unwrap_or(0);
         &line[trimmed..]
     } else {
         line
@@ -720,8 +854,10 @@ fn count_line_matches(content: &[u8], re: &regex::bytes::Regex, opts: &SearchOpt
                 count += 1;
             }
             pos = line_end + 1;
-            if let Some(max) = opts.max_count {
-                if count >= max { break; }
+            if let Some(max) = opts.max_count
+                && count >= max
+            {
+                break;
             }
         }
         count
@@ -743,8 +879,10 @@ fn count_line_matches(content: &[u8], re: &regex::bytes::Regex, opts: &SearchOpt
                 .unwrap_or(content.len());
             prev_line_end = line_end;
             count += 1;
-            if let Some(max) = opts.max_count {
-                if count >= max { break; }
+            if let Some(max) = opts.max_count
+                && count >= max
+            {
+                break;
             }
         }
         count
@@ -758,8 +896,10 @@ fn count_individual_matches(content: &[u8], re: &regex::bytes::Regex, opts: &Sea
             continue;
         }
         count += 1;
-        if let Some(max) = opts.max_count {
-            if count >= max { break; }
+        if let Some(max) = opts.max_count
+            && count >= max
+        {
+            break;
         }
     }
     count
@@ -807,12 +947,10 @@ fn collect_candidates(
             if has_type_filter {
                 let types = build_type_matcher(opts);
                 if let Some(types) = types {
-                    paths.retain(|p| {
-                        match types.matched(p, false) {
-                            ignore::Match::None => opts.file_types.is_empty(),
-                            ignore::Match::Ignore(_) => true,
-                            ignore::Match::Whitelist(_) => true,
-                        }
+                    paths.retain(|p| match types.matched(p, false) {
+                        ignore::Match::None => opts.file_types.is_empty(),
+                        ignore::Match::Ignore(_) => true,
+                        ignore::Match::Whitelist(_) => true,
                     });
                 }
             }
@@ -842,7 +980,9 @@ fn build_type_matcher(opts: &SearchOpts) -> Option<ignore::types::Types> {
 fn file_matches_globs(path: &Path, opts: &SearchOpts) -> bool {
     for g in &opts.globs {
         if let Some(neg) = g.strip_prefix('!') {
-            if glob_matches(path, neg) { return false; }
+            if glob_matches(path, neg) {
+                return false;
+            }
         } else if !glob_matches(path, g) {
             return false;
         }
@@ -868,7 +1008,11 @@ fn line_end(content: &[u8], line_starts: &[usize], line: usize) -> usize {
     if line + 1 < line_starts.len() {
         let e = line_starts[line + 1];
         if e > start && content[e - 1] == b'\n' {
-            if e > start + 1 && content[e - 2] == b'\r' { e - 2 } else { e - 1 }
+            if e > start + 1 && content[e - 2] == b'\r' {
+                e - 2
+            } else {
+                e - 1
+            }
         } else {
             e
         }
@@ -882,7 +1026,9 @@ fn build_line_starts(content: &[u8]) -> Vec<usize> {
     let mut starts = Vec::with_capacity(content.len() / 40);
     starts.push(0);
     for (i, &b) in content.iter().enumerate() {
-        if b == b'\n' { starts.push(i + 1); }
+        if b == b'\n' {
+            starts.push(i + 1);
+        }
     }
     starts
 }
@@ -912,8 +1058,12 @@ fn collect_all_files(root: &Path, opts: &SearchOpts) -> Result<Vec<std::path::Pa
     if !opts.file_types.is_empty() || !opts.type_not.is_empty() {
         let mut types_builder = ignore::types::TypesBuilder::new();
         types_builder.add_defaults();
-        for t in &opts.file_types { types_builder.select(t); }
-        for t in &opts.type_not { types_builder.negate(t); }
+        for t in &opts.file_types {
+            types_builder.select(t);
+        }
+        for t in &opts.type_not {
+            types_builder.negate(t);
+        }
         if let Ok(types) = types_builder.build() {
             builder.types(types);
         }

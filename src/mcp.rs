@@ -1,7 +1,7 @@
 use std::io::{self, BufRead, Write};
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::search::SearchOpts;
 
@@ -195,17 +195,29 @@ fn handle_tools_call(msg: &Value, id: &Option<Value>) -> Value {
 fn call_search(args: &Value, id: &Option<Value>) -> Value {
     let pattern = args.get("pattern").and_then(|p| p.as_str()).unwrap_or("");
     let path = args.get("path").and_then(|p| p.as_str()).unwrap_or(".");
-    let max_results = args.get("max_results").and_then(|v| v.as_u64()).unwrap_or(100) as usize;
+    let max_results = args
+        .get("max_results")
+        .and_then(|v| v.as_u64())
+        .unwrap_or(100) as usize;
     let file_types = parse_file_types(args.get("file_type"));
     let context = args.get("context").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let before = args.get("before").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let after = args.get("after").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
 
     let opts = SearchOpts {
-        case_insensitive: args.get("case_insensitive").and_then(|v| v.as_bool()).unwrap_or(false),
-        fixed_strings: args.get("fixed_strings").and_then(|v| v.as_bool()).unwrap_or(false),
+        case_insensitive: args
+            .get("case_insensitive")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
+        fixed_strings: args
+            .get("fixed_strings")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
         word: args.get("word").and_then(|v| v.as_bool()).unwrap_or(false),
-        files_only: args.get("files_only").and_then(|v| v.as_bool()).unwrap_or(false),
+        files_only: args
+            .get("files_only")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false),
         file_types,
         context_before: if context > 0 { context } else { before },
         context_after: if context > 0 { context } else { after },
@@ -219,7 +231,7 @@ fn call_search(args: &Value, id: &Option<Value>) -> Value {
             // SearchOpts::max_count is per-file (ripgrep convention).
             // For MCP we want a total cap — truncate after N lines.
             let truncated = truncate_to_lines(&output, max_results);
-            let text = String::from_utf8_lossy(&truncated).to_string();
+            let text = String::from_utf8_lossy(truncated).to_string();
             json!({
                 "jsonrpc": "2.0",
                 "id": id,
@@ -254,7 +266,9 @@ fn call_index(args: &Value, id: &Option<Value>) -> Value {
         Ok(stats) => {
             let text = format!(
                 "Indexed {} files, {} unique n-grams in {:.2}s\npostings: {:.1} MB, lookup: {:.1} MB",
-                stats.file_count, stats.ngram_count, stats.build_secs,
+                stats.file_count,
+                stats.ngram_count,
+                stats.build_secs,
                 stats.postings_bytes as f64 / 1_048_576.0,
                 stats.lookup_bytes as f64 / 1_048_576.0,
             );

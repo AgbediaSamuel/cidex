@@ -1,0 +1,91 @@
+name: Bump version
+
+on:
+  # 1. PR merged to main with a release:* label.
+  pull_request:
+    types: [closed]
+    branches: [main]
+  # 2. Manual trigger from the Actions tab with a dropdown.
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    # Only run on merged PRs (not closed-without-merge), or when manually dispatched.
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Determine bump type
+        id: bump
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "type=${{ inputs.bump }}" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # PR path: look at labels.
+          labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
+          if echo "$labels" | grep -q '"release:major"'; then
+            echo "type=major" >> "$GITHUB_OUTPUT"
+          elif echo "$labels" | grep -q '"release:minor"'; then
+            echo "type=minor" >> "$GITHUB_OUTPUT"
+          elif echo "$labels" | grep -q '"release:patch"'; then
+            echo "type=patch" >> "$GITHUB_OUTPUT"
+          else
+            echo "no release:* label on this PR; skipping"
+            echo "type=none" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute next version
+        if: steps.bump.outputs.type != 'none'
+        id: version
+        run: |
+          current=$(grep -E '^version = "' Cargo.toml | head -1 | sed -E 's/version = "(.*)"/\1/')
+          echo "current=$current"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$current"
+          case "${{ steps.bump.outputs.type }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          new="${MAJOR}.${MINOR}.${PATCH}"
+          echo "new=$new" >> "$GITHUB_OUTPUT"
+          echo "Bumping ${current} -> ${new}"
+
+      - name: Update version files
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          NEW="${{ steps.version.outputs.new }}"
+          # Cargo.toml
+          sed -i -E "s/^version = \"[^\"]+\"/version = \"${NEW}\"/" Cargo.toml
+          # Main npm package
+          sed -i -E "s/\"version\": \"[^\"]+\"/\"version\": \"${NEW}\"/" npm/cidex/package.json
+          # The platform package versions in optionalDependencies all match the main version
+          sed -i -E "s/\"cidex-([a-z0-9-]+)\": \"[^\"]+\"/\"cidex-\1\": \"${NEW}\"/g" npm/cidex/package.json
+
+      - name: Commit, tag, push
+        if: steps.bump.outputs.type != 'none'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          NEW="${{ steps.version.outputs.new }}"
+          git add Cargo.toml npm/cidex/package.json
+          git commit -m "chore: release v${NEW}"
+          git tag "v${NEW}"
+          git push origin main
+          git push origin "v${NEW}"

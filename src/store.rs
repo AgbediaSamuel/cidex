@@ -2,7 +2,7 @@ use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use memmap2::Mmap;
 
 use crate::varint;
@@ -34,13 +34,11 @@ impl Index {
 
         let lookup_file =
             File::open(cidex.join("lookup.bin")).context("failed to open lookup.bin")?;
-        let lookup =
-            unsafe { Mmap::map(&lookup_file).context("failed to mmap lookup.bin")? };
+        let lookup = unsafe { Mmap::map(&lookup_file).context("failed to mmap lookup.bin")? };
 
         let postings_file =
             File::open(cidex.join("postings.bin")).context("failed to open postings.bin")?;
-        let postings =
-            unsafe { Mmap::map(&postings_file).context("failed to mmap postings.bin")? };
+        let postings = unsafe { Mmap::map(&postings_file).context("failed to mmap postings.bin")? };
 
         let file_paths = read_file_paths(root, &cidex.join("files.bin"))?;
         let unindexed = read_unindexed(&cidex.join("unindexed.bin"))?;
@@ -167,8 +165,8 @@ fn read_file_paths(root: &Path, path: &Path) -> Result<Vec<PathBuf>> {
         if pos + len > data.len() {
             break;
         }
-        let rel = std::str::from_utf8(&data[pos..pos + len])
-            .context("invalid utf-8 in file path")?;
+        let rel =
+            std::str::from_utf8(&data[pos..pos + len]).context("invalid utf-8 in file path")?;
         paths.push(root.join(rel));
         pos += len;
     }

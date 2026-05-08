@@ -188,10 +188,15 @@ mod tests {
         let literal = b"MAX_FILE_SIZE";
 
         let covering = build_covering(literal);
-        assert!(!covering.is_empty(), "long literal should produce covering hashes");
+        assert!(
+            !covering.is_empty(),
+            "long literal should produce covering hashes"
+        );
 
-        let file_hashes: std::collections::HashSet<u64> =
-            build_all(file_content).into_iter().map(|(h, _)| h).collect();
+        let file_hashes: std::collections::HashSet<u64> = build_all(file_content)
+            .into_iter()
+            .map(|(h, _)| h)
+            .collect();
 
         for h in &covering {
             assert!(file_hashes.contains(h), "covering hash not in file n-grams");

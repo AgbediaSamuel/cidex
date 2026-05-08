@@ -1,0 +1,37 @@
+{
+  "name": "cidex",
+  "version": "0.1.0",
+  "description": "Indexed code search using frequency-weighted sparse n-gram indexing — beats ripgrep on large codebases.",
+  "keywords": ["search", "grep", "ripgrep", "regex", "index", "code-search", "mcp"],
+  "homepage": "https://github.com/AgbediaSamuel/cidex",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AgbediaSamuel/cidex.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AgbediaSamuel/cidex/issues"
+  },
+  "license": "MIT",
+  "author": "Samuel Agbedia",
+  "bin": {
+    "cidex": "bin/cidex.js"
+  },
+  "files": [
+    "bin/cidex.js",
+    "install.js",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "optionalDependencies": {
+    "cidex-linux-x64": "0.1.0",
+    "cidex-linux-arm64": "0.1.0",
+    "cidex-darwin-x64": "0.1.0",
+    "cidex-darwin-arm64": "0.1.0",
+    "cidex-win32-x64": "0.1.0"
+  }
+}

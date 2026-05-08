@@ -15,13 +15,17 @@ use anyhow::Result;
 use clap::{CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "cidex", about = "Indexed code search using sparse n-gram indexing")]
+#[command(
+    name = "cidex",
+    about = "Indexed code search using sparse n-gram indexing"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)] // Search has 40+ flags by design
 enum Commands {
     /// Build the search index for a directory
     Index {
@@ -204,7 +208,11 @@ enum Commands {
 fn main() {
     let code = match run() {
         Ok(had_match) => {
-            if had_match { 0 } else { 1 }
+            if had_match {
+                0
+            } else {
+                1
+            }
         }
         Err(e) => {
             if let Some(io_err) = e.downcast_ref::<std::io::Error>() {
@@ -231,7 +239,10 @@ fn run() -> Result<bool> {
             let root = path.unwrap_or_else(|| ".".to_string());
             let stats = index::build(Path::new(&root), force)?;
             if stats.ngram_count == 0 && stats.file_count > 0 {
-                eprintln!("index up to date ({} files, {:.2}s)", stats.file_count, stats.build_secs);
+                eprintln!(
+                    "index up to date ({} files, {:.2}s)",
+                    stats.file_count, stats.build_secs
+                );
             } else {
                 eprintln!(
                     "indexed {} files, {} unique n-grams in {:.2}s",
@@ -326,7 +337,10 @@ fn run() -> Result<bool> {
 
             let use_heading = heading || pretty;
             let show_line_numbers = !no_line_number;
-            let show_filename = if no_filename { false } else { with_filename || true };
+            // Default is to show the filename. -H is a no-op against the default
+            // (kept for ripgrep flag compatibility); -I forces it off.
+            let _ = with_filename;
+            let show_filename = !no_filename;
 
             let opts = search::SearchOpts {
                 case_insensitive: ci,

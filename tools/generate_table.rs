@@ -10,11 +10,9 @@ const REPOS: &[(&str, &str)] = &[
 ];
 
 const SOURCE_EXTENSIONS: &[&str] = &[
-    ".rs", ".py", ".c", ".h", ".cpp", ".hpp", ".cc",
-    ".js", ".ts", ".jsx", ".tsx",
-    ".go", ".java", ".rb", ".swift", ".zig",
-    ".cs", ".php", ".lua", ".sh", ".bash",
-    ".toml", ".yaml", ".yml", ".json", ".xml",
+    ".rs", ".py", ".c", ".h", ".cpp", ".hpp", ".cc", ".js", ".ts", ".jsx", ".tsx", ".go", ".java",
+    ".rb", ".swift", ".zig", ".cs", ".php", ".lua", ".sh", ".bash", ".toml", ".yaml", ".yml",
+    ".json", ".xml",
 ];
 
 fn is_source_file(path: &str) -> bool {

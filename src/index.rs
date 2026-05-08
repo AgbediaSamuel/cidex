@@ -106,7 +106,9 @@ fn walk_files(root: &Path) -> Vec<FileEntry> {
             continue;
         }
         let path = entry.into_path();
-        let Ok(meta) = fs::metadata(&path) else { continue };
+        let Ok(meta) = fs::metadata(&path) else {
+            continue;
+        };
         let size = meta.len();
         if size == 0 || size > MAX_FILE_SIZE {
             continue;
@@ -155,9 +157,8 @@ fn write_files_bin(cidex: &Path, root: &Path, entries: &[FileEntry]) -> Result<(
 /// (too large or binary) — these get brute-force searched at query time.
 fn extract_pairs_to_temp(entries: &[FileEntry], pairs_path: &Path) -> Result<Vec<u32>> {
     let unindexed = Mutex::new(Vec::<u32>::new());
-    let mut pairs_writer = BufWriter::new(
-        File::create(pairs_path).context("failed to create pairs temp file")?,
-    );
+    let mut pairs_writer =
+        BufWriter::new(File::create(pairs_path).context("failed to create pairs temp file")?);
 
     for chunk_start in (0..entries.len()).step_by(NGRAM_CHUNK_SIZE) {
         let chunk_end = (chunk_start + NGRAM_CHUNK_SIZE).min(entries.len());
@@ -222,8 +223,7 @@ fn build_postings(cidex: &Path, pairs_path: &Path) -> Result<(u64, u64, u64)> {
             i += 1;
         }
 
-        let mut file_ids: Vec<u32> =
-            pairs[group_start..i].iter().map(|(_, fid)| *fid).collect();
+        let mut file_ids: Vec<u32> = pairs[group_start..i].iter().map(|(_, fid)| *fid).collect();
         file_ids.sort_unstable();
         file_ids.dedup();
 
@@ -282,9 +282,8 @@ fn write_lookup_bin(cidex: &Path, entries: &[(u64, u64, u32)]) -> Result<u64> {
 }
 
 fn write_meta(cidex: &Path, file_count: u32, entries: &[FileEntry]) -> Result<()> {
-    let mut w = BufWriter::new(
-        File::create(cidex.join("meta.bin")).context("failed to create meta.bin")?,
-    );
+    let mut w =
+        BufWriter::new(File::create(cidex.join("meta.bin")).context("failed to create meta.bin")?);
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
