@@ -503,10 +503,19 @@ fn mcp_tool_call_runs_search() {
 
     let init = r#"{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"t","version":"1"}}}"#;
     let path = fixtures_dir().to_string_lossy().to_string();
-    let call = format!(
-        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"cidex_search","arguments":{{"pattern":"factorial","path":"{}","max_results":10}}}}}}"#,
-        path
-    );
+    let call = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": "cidex_search",
+            "arguments": {
+                "pattern": "factorial",
+                "path": path,
+                "max_results": 10
+            }
+        }
+    });
 
     {
         let stdin = child.stdin.as_mut().unwrap();
@@ -527,7 +536,7 @@ fn mcp_tool_call_runs_search() {
 
 // MCP feature tests: context lines, file type arrays, cidexignore, gitignore.
 
-fn mcp_call(call_body: &str) -> serde_json::Value {
+fn mcp_call(call: &serde_json::Value) -> serde_json::Value {
     use std::io::Write;
     use std::process::{Command, Stdio};
 
@@ -544,7 +553,7 @@ fn mcp_call(call_body: &str) -> serde_json::Value {
     {
         let stdin = child.stdin.as_mut().unwrap();
         writeln!(stdin, "{}", init).unwrap();
-        writeln!(stdin, "{}", call_body).unwrap();
+        writeln!(stdin, "{}", call).unwrap();
     }
     drop(child.stdin.take());
 
@@ -554,14 +563,28 @@ fn mcp_call(call_body: &str) -> serde_json::Value {
     serde_json::from_str(last_line).expect("valid JSON")
 }
 
+fn search_call(args: serde_json::Value) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "tools/call",
+        "params": {
+            "name": "cidex_search",
+            "arguments": args
+        }
+    })
+}
+
 #[test]
 fn mcp_search_with_context_lines() {
     ensure_fixtures_indexed();
     let path = fixtures_dir().to_string_lossy().to_string();
-    let call = format!(
-        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"cidex_search","arguments":{{"pattern":"def factorial","path":"{}","context":2,"max_results":20}}}}}}"#,
-        path
-    );
+    let call = search_call(serde_json::json!({
+        "pattern": "def factorial",
+        "path": path,
+        "context": 2,
+        "max_results": 20
+    }));
     let resp = mcp_call(&call);
     let text = resp["result"]["content"][0]["text"].as_str().expect("text");
     // Match line uses ":" separator; context lines use "-".
@@ -578,10 +601,12 @@ fn mcp_search_with_context_lines() {
 fn mcp_search_with_file_type_array() {
     ensure_fixtures_indexed();
     let path = fixtures_dir().to_string_lossy().to_string();
-    let call = format!(
-        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"cidex_search","arguments":{{"pattern":"factorial|TODO","path":"{}","file_type":["py","md"],"max_results":20}}}}}}"#,
-        path
-    );
+    let call = search_call(serde_json::json!({
+        "pattern": "factorial|TODO",
+        "path": path,
+        "file_type": ["py", "md"],
+        "max_results": 20
+    }));
     let resp = mcp_call(&call);
     let text = resp["result"]["content"][0]["text"].as_str().expect("text");
     assert!(text.contains("math.py"), "py file missing: {}", text);
@@ -594,10 +619,12 @@ fn mcp_search_with_file_type_array() {
 fn mcp_search_with_file_type_string() {
     ensure_fixtures_indexed();
     let path = fixtures_dir().to_string_lossy().to_string();
-    let call = format!(
-        r#"{{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{{"name":"cidex_search","arguments":{{"pattern":"factorial","path":"{}","file_type":"py","max_results":5}}}}}}"#,
-        path
-    );
+    let call = search_call(serde_json::json!({
+        "pattern": "factorial",
+        "path": path,
+        "file_type": "py",
+        "max_results": 5
+    }));
     let resp = mcp_call(&call);
     let text = resp["result"]["content"][0]["text"].as_str().expect("text");
     assert!(text.contains("math.py"), "py file missing: {}", text);
