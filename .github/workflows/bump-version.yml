@@ -29,7 +29,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          # PAT with `contents:write` and `workflows:write`. Using a PAT
+          # (instead of GITHUB_TOKEN) is what allows the tag push below to
+          # actually trigger the release.yml workflow — GitHub blocks
+          # workflow-on-workflow chains when GITHUB_TOKEN is the pusher.
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: Determine bump type
         id: bump
