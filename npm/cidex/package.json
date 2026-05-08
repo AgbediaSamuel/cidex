@@ -1,5 +1,5 @@
 {
-  "name": "cidex",
+  "name": "@agbediasamuel/cidex",
   "version": "0.1.1",
   "description": "Indexed code search using frequency-weighted sparse n-gram indexing — beats ripgrep on large codebases.",
   "keywords": ["search", "grep", "ripgrep", "regex", "index", "code-search", "mcp"],

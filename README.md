@@ -41,11 +41,17 @@ To reproduce, see `benches/run.sh`.
 ## Install
 
 ```bash
-git clone https://github.com/<you>/cidex
+# via npm (prebuilt binary, no Rust toolchain needed)
+npm install -g @agbediasamuel/cidex
+
+# or build from source
+git clone https://github.com/AgbediaSamuel/cidex
 cd cidex
 RUSTFLAGS="-C target-cpu=native" cargo build --release
 # binary at target/release/cidex
 ```
+
+Supported prebuilt platforms: linux-x64, linux-arm64, darwin-arm64 (Apple Silicon), win32-x64. Intel Mac users build from source.
 
 ## Usage
 

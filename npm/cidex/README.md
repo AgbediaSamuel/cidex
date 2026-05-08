@@ -5,10 +5,10 @@ Indexed code search. Beats ripgrep on large codebases via frequency-weighted spa
 ## Install
 
 ```bash
-npm install -g cidex
+npm install -g @agbediasamuel/cidex
 ```
 
-This pulls down a ~5MB prebuilt binary for your platform — no Rust toolchain required.
+This pulls down a ~5MB prebuilt binary for your platform — no Rust toolchain required. The command is still `cidex` once installed.
 
 Supported platforms: linux-x64, linux-arm64, darwin-arm64 (Apple Silicon), win32-x64.
 
