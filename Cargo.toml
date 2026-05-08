@@ -1,6 +1,6 @@
 [package]
 name = "cidex"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 description = "Indexed code search using frequency-weighted sparse n-gram indexing — beats ripgrep on large codebases."
 license = "MIT"
