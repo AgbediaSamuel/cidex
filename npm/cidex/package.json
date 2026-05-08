@@ -30,7 +30,6 @@
   "optionalDependencies": {
     "cidex-linux-x64": "0.1.1",
     "cidex-linux-arm64": "0.1.1",
-    "cidex-darwin-x64": "0.1.1",
     "cidex-darwin-arm64": "0.1.1",
     "cidex-win32-x64": "0.1.1"
   }

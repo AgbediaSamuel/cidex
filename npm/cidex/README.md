@@ -10,7 +10,9 @@ npm install -g cidex
 
 This pulls down a ~5MB prebuilt binary for your platform — no Rust toolchain required.
 
-Supported platforms: linux-x64, linux-arm64, darwin-x64, darwin-arm64, win32-x64.
+Supported platforms: linux-x64, linux-arm64, darwin-arm64 (Apple Silicon), win32-x64.
+
+Intel Macs aren't supported by the prebuilt binaries — build from source: https://github.com/AgbediaSamuel/cidex
 
 ## Usage
 

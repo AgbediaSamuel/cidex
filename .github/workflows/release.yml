@@ -65,12 +65,6 @@ jobs:
             ext: ""
             linker: aarch64-linux-gnu-gcc
             apt_packages: gcc-aarch64-linux-gnu
-          - os: macos-13
-            target: x86_64-apple-darwin
-            npm_pkg: cidex-darwin-x64
-            npm_os: darwin
-            npm_cpu: x64
-            ext: ""
           - os: macos-latest
             target: aarch64-apple-darwin
             npm_pkg: cidex-darwin-arm64
@@ -152,11 +146,6 @@ jobs:
             npm_pkg: cidex-linux-arm64
             npm_os: linux
             npm_cpu: arm64
-            ext: ""
-          - target: x86_64-apple-darwin
-            npm_pkg: cidex-darwin-x64
-            npm_os: darwin
-            npm_cpu: x64
             ext: ""
           - target: aarch64-apple-darwin
             npm_pkg: cidex-darwin-arm64

@@ -9,7 +9,6 @@ const path = require("path");
 const PLATFORMS = {
   "linux-x64": "cidex-linux-x64",
   "linux-arm64": "cidex-linux-arm64",
-  "darwin-x64": "cidex-darwin-x64",
   "darwin-arm64": "cidex-darwin-arm64",
   "win32-x64": "cidex-win32-x64",
 };
