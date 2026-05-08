@@ -50,16 +50,20 @@ fn rg_available() -> bool {
         .unwrap_or(false)
 }
 
-// Build the index for the fixtures directory once at test start.
-// (Cargo runs tests in parallel by default, but they all read the same index,
-// so this is fine.)
+// Build the fixtures index exactly once per test process. Tests run in
+// parallel by default, so without this serialization several of them race
+// on `.cidex/pairs.tmp` and clobber each other.
+static FIXTURES_INDEX: std::sync::OnceLock<()> = std::sync::OnceLock::new();
+
 fn ensure_fixtures_indexed() {
-    let fixtures = fixtures_dir();
-    let cidex_dir = fixtures.join(".cidex");
-    if !cidex_dir.exists() {
-        let (_, stderr, code) = run_cidex(&["index", fixtures.to_str().unwrap()]);
+    FIXTURES_INDEX.get_or_init(|| {
+        let fixtures = fixtures_dir();
+        // Always rebuild — fingerprint check makes this cheap if it's already current,
+        // and starting from a known-good state avoids "stale partial index" surprises.
+        let (_, stderr, code) =
+            run_cidex(&["index", fixtures.to_str().unwrap(), "--force"]);
         assert_eq!(code, 0, "indexing fixtures failed: {}", stderr);
-    }
+    });
 }
 
 // Self-contained tests on fixtures.
