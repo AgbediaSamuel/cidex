@@ -6,11 +6,12 @@ on:
       - "v*"
   # Manual fallback: lets you re-run the release for an existing tag from
   # the Actions UI if something fails partway (e.g., npm publish flake).
+  # Leave `tag` blank to release the most recent tag.
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to release (e.g., v0.1.1)"
-        required: true
+        description: "Tag to release (leave blank for latest)"
+        required: false
         type: string
 
 permissions:
@@ -18,8 +19,32 @@ permissions:
   id-token: write   # for npm provenance (cryptographic attestation of publish source)
 
 jobs:
+  # 0) Resolve the effective tag once so all downstream jobs agree on it.
+  #    - push event:        use GITHUB_REF_NAME (e.g. "v0.1.2")
+  #    - workflow_dispatch: use the input if given, else the latest tag
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # need full tag history for `git describe`
+      - id: r
+        run: |
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            TAG=$(git describe --tags --abbrev=0)
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing tag: $TAG"
+
   # 1) Build binaries for all five target platforms.
   build:
+    needs: resolve
     name: build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
     strategy:
@@ -62,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -112,7 +137,7 @@ jobs:
   #    the binary + a tiny package.json with os/cpu constraints.
   npm-platform-packages:
     name: npm platform pkg (${{ matrix.target }})
-    needs: build
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -147,12 +172,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Read tag version
         id: version
         run: |
-          REF="${{ inputs.tag || github.ref_name }}"
+          REF="${{ needs.resolve.outputs.tag }}"
           echo "version=${REF#v}" >> "$GITHUB_OUTPUT"
 
       - name: Download binary
@@ -212,12 +237,12 @@ jobs:
   #    they're resolvable by users at install time.
   npm-main-package:
     name: npm main pkg
-    needs: npm-platform-packages
+    needs: [resolve, npm-platform-packages]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -235,12 +260,12 @@ jobs:
   #    Release. People who don't want npm can grab a tarball directly.
   github-release:
     name: GitHub release
-    needs: build
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.tag || github.ref }}
+          ref: ${{ needs.resolve.outputs.tag }}
 
       - name: Download all binaries
         uses: actions/download-artifact@v4
@@ -265,7 +290,7 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.resolve.outputs.tag }}
           generate_release_notes: true
           files: |
             release/*.tar.gz
